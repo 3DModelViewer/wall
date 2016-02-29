@@ -102,7 +102,7 @@ func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.Se
 		}
 	}
 
-	outerRouter := http.NewServeMux()()
+	outerRouter := http.NewServeMux()
 	outerRouter.HandleFunc(loginPath, openidLoginHandler)
 	outerRouter.HandleFunc(callbackPath, openidCallbackHandler)
 	outerRouter.HandleFunc(rootPath, outerHandler)
