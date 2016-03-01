@@ -81,7 +81,7 @@ func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.Se
 					http.Error(w, "error in openidCallbackHandler", 500)
 				} else {
 					s, _ := getSession(w, r)
-					s.SetUser(user.Id)
+					s.SetUser(user)
 					http.Redirect(w, r, rootPath, 303)
 				}
 			} else {
