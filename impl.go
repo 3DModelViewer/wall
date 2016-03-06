@@ -7,6 +7,10 @@ import (
 	"github.com/modelhub/session"
 	"github.com/modelhub/core"
 	"strings"
+	"html/template"
+	"github.com/gorilla/csrf"
+	"io/ioutil"
+	"path/filepath"
 )
 
 const (
@@ -16,10 +20,16 @@ const (
 	callbackPath = "/openid/callback"
 )
 
-func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.SessionGetter, openidProviderEndpoint string, currentHost string, staticFileDir string) *http.ServeMux {
+func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.SessionGetter, openidProviderEndpoint string, currentHost string, csrfAuthKey []byte, isOverSecureConnection bool, staticFileDir string) (http.Handler, error) {
 	nonceStore := openid.NewSimpleNonceStore()
 	discoveryCache := openid.NewSimpleDiscoveryCache()
 	fileServer := http.FileServer(http.Dir(staticFileDir))
+	var t *template.Template
+	if indexHtml, err := ioutil.ReadFile(filepath.Join(staticFileDir, "index.html")); err != nil {
+		return nil, err
+	} else {
+		t = template.Must(template.New("index.html").Parse(string(indexHtml)))
+	}
 
 	isLoggedIn := func(w http.ResponseWriter, r *http.Request) bool {
 		if s, err := getSession(w, r); err != nil || s == nil {
@@ -94,6 +104,19 @@ func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.Se
 		if isLoggedIn(w, r) {
 			if strings.HasPrefix(r.URL.Path, apiPathPrefix) {
 				restApi.ServeHTTP(w, r)
+			} else if r.URL.Path == rootPath {
+				if s, err := getSession(w, r); err != nil || s == nil {
+					w.WriteHeader(500)
+				} else if userId, err := s.User(); err != nil || userId == "" {
+					w.WriteHeader(500)
+				} else if user, err := coreApi.User().GetCurrent(userId); err != nil {
+					w.WriteHeader(500)
+				} else {
+					t.Execute(w, map[string]interface{}{
+						"currentUser": user,
+						"csrfToken": csrf.Token(r),
+					})
+				}
 			} else {
 				fileServer.ServeHTTP(w, r)
 			}
@@ -103,9 +126,10 @@ func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.Se
 	}
 
 	outerRouter := http.NewServeMux()
+	csrfProtectedOuterRouter := csrf.Protect(csrfAuthKey, csrf.RequestHeader("Csrf-Token"), csrf.Secure(isOverSecureConnection))(outerRouter) //remember kids, always use protection ;)
 	outerRouter.HandleFunc(loginPath, openidLoginHandler)
 	outerRouter.HandleFunc(callbackPath, openidCallbackHandler)
 	outerRouter.HandleFunc(rootPath, outerHandler)
 
-	return outerRouter
+	return csrfProtectedOuterRouter, nil
 }
