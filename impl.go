@@ -114,6 +114,7 @@ func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.Se
 				} else {
 					t.Execute(w, map[string]interface{}{
 						"currentUser": user,
+						"openIdProviderHost": openidProviderEndpoint,
 						"csrfToken": csrf.Token(r),
 					})
 				}
