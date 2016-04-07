@@ -18,6 +18,8 @@ const (
 	rootPath = "/"
 	loginPath = "/openid/login"
 	callbackPath = "/openid/callback"
+	csrfRequestHeader = "Csrf-Token"
+	csrfCookieName = "mh_csrf"
 )
 
 func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.SessionGetter, openidProviderEndpoint string, currentHost string, csrfAuthKey []byte, csrfCookieMaxAge int, isOverSecureConnection bool, staticFileDir string) (http.Handler, error) {
@@ -127,7 +129,7 @@ func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.Se
 	}
 
 	outerRouter := http.NewServeMux()
-	csrfProtectedOuterRouter := csrf.Protect(csrfAuthKey, csrf.RequestHeader("Csrf-Token"), csrf.Secure(isOverSecureConnection), csrf.MaxAge(csrfCookieMaxAge))(outerRouter) //remember kids, always use protection ;)
+	csrfProtectedOuterRouter := csrf.Protect(csrfAuthKey, csrf.RequestHeader(csrfRequestHeader), csrf.Secure(isOverSecureConnection), csrf.MaxAge(csrfCookieMaxAge), csrf.Path(rootPath), csrf.CookieName(csrfCookieName))(outerRouter) //remember kids, always use protection ;)
 	outerRouter.HandleFunc(loginPath, openidLoginHandler)
 	outerRouter.HandleFunc(callbackPath, openidCallbackHandler)
 	outerRouter.HandleFunc(rootPath, outerHandler)
