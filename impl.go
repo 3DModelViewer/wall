@@ -20,7 +20,7 @@ const (
 	callbackPath = "/openid/callback"
 )
 
-func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.SessionGetter, openidProviderEndpoint string, currentHost string, csrfAuthKey []byte, isOverSecureConnection bool, staticFileDir string) (http.Handler, error) {
+func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.SessionGetter, openidProviderEndpoint string, currentHost string, csrfAuthKey []byte, csrfCookieMaxAge int, isOverSecureConnection bool, staticFileDir string) (http.Handler, error) {
 	nonceStore := openid.NewSimpleNonceStore()
 	discoveryCache := openid.NewSimpleDiscoveryCache()
 	fileServer := http.FileServer(http.Dir(staticFileDir))
@@ -127,7 +127,7 @@ func NewWall(coreApi core.CoreApi, restApi *http.ServeMux, getSession session.Se
 	}
 
 	outerRouter := http.NewServeMux()
-	csrfProtectedOuterRouter := csrf.Protect(csrfAuthKey, csrf.RequestHeader("Csrf-Token"), csrf.Secure(isOverSecureConnection))(outerRouter) //remember kids, always use protection ;)
+	csrfProtectedOuterRouter := csrf.Protect(csrfAuthKey, csrf.RequestHeader("Csrf-Token"), csrf.Secure(isOverSecureConnection), csrf.MaxAge(csrfCookieMaxAge))(outerRouter) //remember kids, always use protection ;)
 	outerRouter.HandleFunc(loginPath, openidLoginHandler)
 	outerRouter.HandleFunc(callbackPath, openidCallbackHandler)
 	outerRouter.HandleFunc(rootPath, outerHandler)
